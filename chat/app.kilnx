@@ -1,0 +1,152 @@
+# Kilnx Chat
+# Slack-style team chat built with Kilnx
+
+config
+  database: env DATABASE_URL default "sqlite://chat.db"
+  port: env PORT default 8080
+  secret: env SECRET_KEY default "dev-secret"
+  name: Kilnx Chat
+  static: static
+  uploads: uploads
+
+import "models.kilnx"
+import "auth.kilnx"
+
+layout slack
+  query channels: SELECT c.id, c.name, COUNT(m.id) as msg_count FROM channel c LEFT JOIN message m ON m.channel_id = c.id AND m.reply_to = 0 GROUP BY c.id ORDER BY c.name
+  query favs: SELECT c.id, c.name FROM channel c JOIN favorite f ON f.channel_id = c.id WHERE f.user_id = :current_user_id ORDER BY c.name
+  query dm_users: SELECT DISTINCT u.id, u.name FROM user u WHERE u.id IN (SELECT sender_id FROM direct_message WHERE recipient_id = :current_user_id UNION SELECT recipient_id FROM direct_message WHERE sender_id = :current_user_id) ORDER BY u.name
+  query me: SELECT name FROM user WHERE id = :current_user_id
+  html
+    <!DOCTYPE html>
+    <html lang="en" class="h-full">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>{page.title} - Kilnx Chat</title>
+      <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 470 469'><g transform='translate(0,470) scale(0.1,-0.1)' fill='%23e64a19'><path d='M360 2850 l0-1850 111 0 111 0 240 233c132 127 256 245 274 260l34 28 0 530 0 529 1220 0 1220 0 0-522-1-523 273-267 273-267 113-1 112 0 0 1850 0 1850-1990 0-1990 0 0-1850z M1410 1877l0-473-349-347-349-347-356 0-356 0 2-352c2-194 6-352 11-350 4 1 333 2 732 2l725 0 0 288 0 288 116 215c64 117 156 288 205 379l89 164 0 503 0 503-235 0-235 0 0-473z M2120 2243c0-60-1-322-2-583l-2-475-178-374-178-374 0-213 0-214 590 0 590 0 0 214 0 214-111 233c-61 129-139 290-173 359l-61 125-5 595-5 595-232 3-233 2 0-107z M2820 1848l0-502 92-170c51-94 143-265 205-381l113-210 0-287 0-288 735 0 735 0 0 350 0 350-355 0-355 0-350 346-350 347 0 473 0 474-235 0-235 0 0-502z'/></g></svg>">
+      {kilnx.js}
+      <script src="https://unpkg.com/idiomorph@0.3.0/dist/idiomorph-ext.min.js"></script>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <script src="/_static/chat.js"></script>
+      <style>
+        ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}.kilnx-topbar{display:none!important}.msg-actions{opacity:0;transition:opacity .1s}.msg-row:hover .msg-actions{opacity:1}.msg-row:hover{background:rgba(255,255,255,.02)}.section-items{max-height:500px;overflow:hidden;transition:max-height .2s}.section-items.collapsed{max-height:0}.section-toggle{cursor:pointer;user-select:none}.section-toggle .arrow{transition:transform .2s;display:inline-block;font-size:10px}.section-toggle.collapsed .arrow{transform:rotate(-90deg)}.reactions{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.reaction-btn{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);font-size:12px;cursor:pointer;transition:all .15s}.reaction-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2)}
+      </style>
+    </head>
+    <body class="h-full bg-[#1a1d21] text-[#d1d2d3] font-[system-ui,-apple-system,sans-serif] antialiased overflow-hidden">
+      <div class="h-full flex">
+        <nav class="w-[44px] bg-[#0f0a13] flex flex-col items-center py-3 gap-3 shrink-0 border-r border-[#ffffff08]">
+          <a href="/home" class="w-9 h-9 rounded-xl bg-[#e64a19] flex items-center justify-center hover:rounded-2xl transition-all shadow-lg" title="Home"><span class="text-white font-black text-[15px] leading-none">K</span></a>
+          <div class="w-6 border-t border-[#ffffff15]"></div>
+          <a href="/dm/new" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#9a9b9e] hover:text-white hover:bg-[#ffffff0d] transition" title="DMs"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg></a>
+          <a href="/search" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#9a9b9e] hover:text-white hover:bg-[#ffffff0d] transition" title="Search"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg></a>
+          <div class="flex-1"></div>
+          <a href="/profile" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#9a9b9e] hover:text-white hover:bg-[#ffffff0d] transition" title="Profile"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></a>
+        </nav>
+        <aside class="w-[240px] bg-[#19171d] flex flex-col shrink-0 border-r border-[#ffffff0d]">
+          <div class="h-[49px] flex items-center px-4 border-b border-[#ffffff0d] shrink-0"><span class="font-bold text-white text-[15px]">Kilnx Chat</span></div>
+          <div class="flex-1 overflow-y-auto py-2">
+            {{if favs.count}}<div class="mb-1"><div class="section-toggle flex items-center gap-1.5 px-4 py-1 text-[#9a9b9e] text-xs font-semibold uppercase tracking-wide" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')"><span class="arrow">&#9660;</span> Favorites</div><div class="section-items">{{each favs}}<a href="/channel/{id}" class="channel-link flex items-center gap-2 px-4 py-[5px] mx-2 rounded-md text-[14px] text-[#bcbdc0] hover:bg-[#ffffff0d] transition" data-id="{id}"><span class="text-[#e8912d] text-[11px]">&#9733;</span><span class="truncate">{name}</span></a>{{end}}</div></div>{{end}}
+            <div class="mb-1"><div class="section-toggle flex items-center justify-between px-4 py-1" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')"><span class="flex items-center gap-1.5 text-[#9a9b9e] text-xs font-semibold uppercase tracking-wide"><span class="arrow">&#9660;</span> Channels</span><a href="/channels/new" class="text-[#9a9b9e] hover:text-white transition text-lg leading-none" title="Create channel" onclick="event.stopPropagation()">+</a></div><div class="section-items">{{each channels}}<a href="/channel/{id}" class="channel-link flex items-center gap-2 px-4 py-[5px] mx-2 rounded-md text-[14px] text-[#bcbdc0] hover:bg-[#ffffff0d] transition" data-id="{id}"><span class="text-[#9a9b9e] text-[13px]">#</span><span class="truncate">{name}</span></a>{{end}}</div></div>
+            <div class="mb-1"><div class="section-toggle flex items-center justify-between px-4 py-1" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')"><span class="flex items-center gap-1.5 text-[#9a9b9e] text-xs font-semibold uppercase tracking-wide"><span class="arrow">&#9660;</span> Direct Messages</span><a href="/dm/new" class="text-[#9a9b9e] hover:text-white transition text-lg leading-none" title="New message" onclick="event.stopPropagation()">+</a></div><div class="section-items">{{each dm_users}}<a href="/dm/{id}" class="dm-link flex items-center gap-2 px-4 py-[5px] mx-2 rounded-md text-[14px] text-[#bcbdc0] hover:bg-[#ffffff0d] transition" data-dm="{id}"><span class="w-2 h-2 rounded-full bg-[#2bac76] shrink-0"></span><span class="truncate">{name}</span></a>{{end}}</div></div>
+          </div>
+          <div class="h-[52px] flex items-center justify-between px-4 border-t border-[#ffffff0d] shrink-0"><a href="/profile" class="flex items-center gap-2 text-sm text-[#bcbdc0] hover:text-white transition truncate"><div class="w-6 h-6 rounded-md bg-[#6366f1] flex items-center justify-center text-white text-[10px] font-bold shrink-0">{me.name|truncate:1}</div><span class="truncate text-[13px]">{me.name}</span></a><form method="POST" action="/logout" style="display:inline;margin:0"><input type="hidden" name="_csrf" value="{csrf}"><button type="submit" class="text-[#9a9b9e] hover:text-white transition text-xs bg-transparent border-0 cursor-pointer font-[inherit]">Logout</button></form></div>
+        </aside>
+        <div class="flex-1 flex flex-col min-w-0">{page.content}</div>
+      </div>
+      <script>
+        var p=window.location.pathname;document.querySelectorAll('.channel-link').forEach(function(e){if(p==='/channel/'+e.dataset.id){e.classList.add('bg-[#1164a3]','text-white');e.classList.remove('text-[#bcbdc0]')}});document.querySelectorAll('.dm-link').forEach(function(e){if(p==='/dm/'+e.dataset.dm){e.classList.add('bg-[#1164a3]','text-white');e.classList.remove('text-[#bcbdc0]')}});
+      </script>
+      {nav}
+    </body>
+    </html>
+
+# Landing page (public)
+page / title "Kilnx Chat"
+  html
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>.kilnx-topbar{display:none!important}body{font-family:'Inter',system-ui,sans-serif}@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}.anim{animation:fadeUp .6s ease both}.anim-d1{animation-delay:.1s}.anim-d2{animation-delay:.2s}.anim-d3{animation-delay:.3s}.anim-d4{animation-delay:.4s}.glow{position:absolute;width:600px;height:600px;border-radius:50%;filter:blur(120px);opacity:.15;pointer-events:none}</style>
+    <div class="min-h-screen bg-[#0c0c0e] text-[#d1d2d3] overflow-hidden">
+      <nav class="flex items-center justify-between px-6 sm:px-10 py-4 relative z-10">
+        <div class="flex items-center gap-2.5"><div class="w-8 h-8 rounded-lg bg-[#e64a19] flex items-center justify-center"><span class="text-white font-black text-sm">K</span></div><span class="font-bold text-white text-lg tracking-tight">Kilnx Chat</span></div>
+        <div class="flex items-center gap-3"><a href="/login" class="text-sm text-[#9a9b9e] hover:text-white transition font-medium px-4 py-2">Sign in</a><a href="/register" class="text-sm bg-white text-[#0c0c0e] font-semibold px-4 py-2 rounded-lg hover:bg-[#e4e4e7] transition">Get started free</a></div>
+      </nav>
+      <section class="relative px-6 sm:px-10 pt-16 sm:pt-24 pb-16 text-center max-w-4xl mx-auto">
+        <div class="glow bg-[#e64a19] -top-40 left-1/2 -translate-x-1/2"></div>
+        <h1 class="anim anim-d1 text-4xl sm:text-6xl font-extrabold text-white leading-[1.1] tracking-tight mb-6">Team messaging<br><span class="bg-gradient-to-r from-[#e64a19] to-[#ff6e40] bg-clip-text text-transparent">without the bloat</span></h1>
+        <p class="anim anim-d2 text-lg sm:text-xl text-[#9a9b9e] max-w-xl mx-auto mb-10 leading-relaxed">Channels, threads, DMs, reactions, file sharing, markdown, and real-time typing indicators. Built with zero JavaScript frameworks.</p>
+        <div class="anim anim-d3 flex flex-col sm:flex-row gap-3 justify-center mb-16"><a href="/register" class="px-8 py-3.5 bg-[#e64a19] hover:bg-[#ff6e40] text-white font-bold rounded-lg transition-all text-sm">Start chatting</a><a href="https://kilnx.dev" class="px-8 py-3.5 bg-[#ffffff08] border border-[#ffffff15] text-[#d1d2d3] hover:text-white font-semibold rounded-lg transition text-sm">Learn about Kilnx</a></div>
+        <div class="anim anim-d4 relative mx-auto max-w-3xl rounded-xl border border-[#ffffff10] bg-[#111113] shadow-2xl shadow-black/50 overflow-hidden">
+          <div class="flex items-center gap-1.5 px-4 py-2.5 border-b border-[#ffffff08]"><span class="w-2.5 h-2.5 rounded-full bg-[#ff5f57]"></span><span class="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]"></span><span class="w-2.5 h-2.5 rounded-full bg-[#28c840]"></span><span class="ml-3 text-xs text-[#616061]">kilnx-chat</span></div>
+          <div class="flex h-[300px] sm:h-[360px]">
+            <div class="w-[180px] bg-[#19171d] border-r border-[#ffffff08] p-3 hidden sm:block">
+              <p class="text-[10px] text-[#9a9b9e] uppercase tracking-wider font-semibold mb-2">Channels</p>
+              <div class="space-y-0.5"><div class="flex items-center gap-1.5 px-2 py-1 rounded bg-[#1164a3] text-white text-xs"><span class="text-[10px]">#</span> general</div><div class="flex items-center gap-1.5 px-2 py-1 rounded text-[#bcbdc0] text-xs"><span class="text-[10px]">#</span> engineering</div><div class="flex items-center gap-1.5 px-2 py-1 rounded text-[#bcbdc0] text-xs"><span class="text-[10px]">#</span> project-atlas</div></div>
+              <p class="text-[10px] text-[#9a9b9e] uppercase tracking-wider font-semibold mt-4 mb-2">DMs</p>
+              <div class="space-y-0.5"><div class="flex items-center gap-1.5 px-2 py-1 text-[#bcbdc0] text-xs"><span class="w-1.5 h-1.5 rounded-full bg-[#2bac76]"></span> Bob</div><div class="flex items-center gap-1.5 px-2 py-1 text-[#bcbdc0] text-xs"><span class="w-1.5 h-1.5 rounded-full bg-[#616061]"></span> Carol</div></div>
+            </div>
+            <div class="flex-1 flex flex-col">
+              <div class="px-4 py-2 border-b border-[#ffffff08] flex items-center gap-2"><span class="text-[#e8912d] font-bold">#</span><span class="text-white text-sm font-semibold">general</span></div>
+              <div class="flex-1 px-4 py-3 space-y-3 overflow-hidden">
+                <div class="flex gap-2.5"><div class="w-7 h-7 rounded bg-[#6366f1] flex items-center justify-center text-white text-[9px] font-bold shrink-0">A</div><div><div class="flex items-baseline gap-1.5"><span class="text-xs font-bold text-white">Alice</span><span class="text-[9px] text-[#616061]">2m ago</span></div><p class="text-xs text-[#d1d2d3]">We need to rethink the migration strategy for Atlas.</p></div></div>
+                <div class="flex gap-2.5"><div class="w-7 h-7 rounded bg-[#e64a19] flex items-center justify-center text-white text-[9px] font-bold shrink-0">B</div><div><div class="flex items-baseline gap-1.5"><span class="text-xs font-bold text-white">Bob</span><span class="text-[9px] text-[#616061]">1m ago</span></div><p class="text-xs text-[#d1d2d3]">v0.1.1 just shipped --dry-run. Have you tried it?</p><div class="flex gap-1 mt-1"><span class="text-[10px] px-1.5 py-0.5 rounded border border-[#ffffff10] bg-[#ffffff05]">👍 3</span></div><div class="mt-1"><span class="text-[9px] text-[#1d9bd1] font-semibold">2 replies</span></div></div></div>
+                <div class="flex gap-2.5"><div class="w-7 h-7 rounded bg-[#2bac76] flex items-center justify-center text-white text-[9px] font-bold shrink-0">C</div><div><div class="flex items-baseline gap-1.5"><span class="text-xs font-bold text-white">Carol</span><span class="text-[9px] text-[#616061]">just now</span></div><p class="text-xs text-[#d1d2d3]">The fetch keyword is clean. Three lines for an API call.</p></div></div>
+              </div>
+              <div class="px-3 py-2 border-t border-[#ffffff08]"><div class="text-[9px] text-[#9a9b9e] mb-1">Bob is typing...</div><div class="bg-[#222529] border border-[#565856] rounded px-3 py-1.5 text-[11px] text-[#616061]">Message #general</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="px-6 sm:px-10 py-16 max-w-3xl mx-auto">
+        <div class="grid sm:grid-cols-2 gap-x-10 gap-y-6 text-sm">
+          <div><span class="text-white font-semibold">Channels and threads</span><span class="text-[#9a9b9e]"> keep conversations organized without forcing structure.</span></div>
+          <div><span class="text-white font-semibold">Direct messages</span><span class="text-[#9a9b9e]"> for private conversations between team members.</span></div>
+          <div><span class="text-white font-semibold">Reactions and pins</span><span class="text-[#9a9b9e]"> so decisions don't get lost in the scroll.</span></div>
+          <div><span class="text-white font-semibold">Markdown and @mentions</span><span class="text-[#9a9b9e]"> with inline formatting toolbar.</span></div>
+          <div><span class="text-white font-semibold">File attachments</span><span class="text-[#9a9b9e]"> uploaded directly in the message input.</span></div>
+          <div><span class="text-white font-semibold">Typing indicators</span><span class="text-[#9a9b9e]"> via WebSocket. Zero polling for presence.</span></div>
+        </div>
+      </section>
+      <section class="px-6 sm:px-10 py-12 text-center border-t border-[#ffffff08]">
+        <p class="text-sm text-[#9a9b9e] mb-6">This entire app is declared in <a href="https://github.com/kilnx-org/kilnx-example-chat" class="text-[#e64a19] hover:text-[#ff6e40] transition">.kilnx files</a>. No React, no Express, no npm. One binary.</p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center"><a href="/register" class="px-8 py-3.5 bg-[#e64a19] hover:bg-[#ff6e40] text-white font-bold rounded-lg transition-all text-sm">Start chatting</a><a href="/login" class="px-8 py-3.5 bg-[#ffffff08] border border-[#ffffff15] text-[#d1d2d3] hover:text-white font-semibold rounded-lg transition text-sm">Sign in</a></div>
+      </section>
+      <footer class="px-6 sm:px-10 py-8 border-t border-[#ffffff08] flex items-center justify-between"><div class="flex items-center gap-2"><div class="w-6 h-6 rounded bg-[#e64a19] flex items-center justify-center"><span class="text-white font-black text-[10px]">K</span></div><span class="text-sm text-[#616061]">Kilnx Chat</span></div><p class="text-xs text-[#616061]">Built with <a href="https://kilnx.dev" class="text-[#e64a19] hover:text-[#ff6e40] transition">Kilnx</a></p></footer>
+    </div>
+
+page /home requires auth layout slack title "Home"
+  query first_channel: SELECT id FROM channel ORDER BY id LIMIT 1
+  html
+    <div class="flex-1 flex items-center justify-center">
+      <div class="text-center max-w-sm">
+        {{if first_channel.id}}
+        <p class="text-[#9a9b9e] mb-4">Select a channel from the sidebar to start chatting.</p>
+        {{else}}
+        <div class="text-4xl mb-4">👋</div>
+        <h2 class="text-xl font-bold text-white mb-2">Welcome to Kilnx Chat</h2>
+        <p class="text-[#9a9b9e] mb-6">Create your first channel to get started.</p>
+        <a href="/channels/new" class="px-5 py-2.5 bg-[#007a5a] hover:bg-[#148567] text-white text-sm font-bold rounded-md transition inline-block">Create a channel</a>
+        {{end}}
+      </div>
+    </div>
+
+import "pages/channels.kilnx"
+import "pages/threads.kilnx"
+import "pages/misc.kilnx"
+import "pages/fragment.kilnx"
+import "pages/dm.kilnx"
+import "actions.kilnx"
+import "realtime.kilnx"
+
+test "homepage requires auth"
+  visit /channel/1
+  expect page /login
+
+test "login page loads"
+  visit /login
+  expect page /login contains "Log in"
+
+test "register page loads"
+  visit /register
+  expect page /register contains "Create account"

@@ -1,0 +1,7 @@
+*.db
+*.db-shm
+*.db-wal
+*.kilnx.test
+uploads/
+coverage.out
+.DS_Store
