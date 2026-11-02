@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Catch breakage from upstream language changes even when this repo is quiet.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: kilnx check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: kilnx-org/kilnx
+          path: .kilnx-src
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: .kilnx-src/go.mod
+
+      - name: Build kilnx from main
+        run: cd .kilnx-src && go build -o "$GITHUB_WORKSPACE/kilnx" ./cmd/kilnx/
+
+      - name: Check every example
+        run: |
+          status=0
+          for app in */app.kilnx; do
+            echo "::group::$app"
+            (cd "$(dirname "$app")" && ../kilnx check app.kilnx) || status=1
+            echo "::endgroup::"
+          done
+          exit $status

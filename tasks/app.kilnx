@@ -1,0 +1,84 @@
+model user
+  email: email required unique
+  password: password required
+
+model task
+  title: text required
+  done: bool default false
+  owner: user required
+  created: timestamp auto
+
+auth
+  table: user
+  identity: email
+  password: password
+  login: /login
+  after login: /tasks
+
+page /login
+  html
+    <p>{params.error}</p>
+    <form method="POST" action="/login">
+      <input type="hidden" name="_csrf" value="{csrf}">
+      <input name="identity" placeholder="Email">
+      <input name="password" type="password" placeholder="Password">
+      <button>Log in</button>
+    </form>
+    <a href="/register">Create an account</a>
+
+page /register
+  html
+    <p>{params.error}</p>
+    <form method="POST" action="/register">
+      <input type="hidden" name="_csrf" value="{csrf}">
+      <input name="identity" placeholder="Email">
+      <input name="password" type="password" placeholder="Password">
+      <button>Sign up</button>
+    </form>
+
+page /forgot-password
+  html
+    <form method="POST" action="/forgot-password">
+      <input type="hidden" name="_csrf" value="{csrf}">
+      <input name="email" placeholder="Email">
+      <button>Send reset link</button>
+    </form>
+
+page /reset-password
+  html
+    <form method="POST" action="/reset-password?token={params.token}">
+      <input type="hidden" name="_csrf" value="{csrf}">
+      <input name="password" type="password" placeholder="New password">
+      <input name="password_confirm" type="password" placeholder="Repeat it">
+      <button>Reset password</button>
+    </form>
+
+page /tasks requires auth
+  query tasks: SELECT id, title, done FROM task
+               WHERE owner_id = :current_user.id
+               ORDER BY created DESC paginate 20
+  html
+    <form method="POST" action="/tasks/new">
+      <input type="hidden" name="_csrf" value="{csrf}">
+      <input name="title" placeholder="New task">
+      <button>Add</button>
+    </form>
+    <table>
+    {{each tasks}}
+    <tr>
+      <td>{title}</td>
+      <td>{{if done}}Yes{{end}}</td>
+      <td><button hx-post="/tasks/{id}/delete" hx-vals='{"_csrf":"{csrf}"}'
+                  hx-target="closest tr" hx-swap="outerHTML">Delete</button></td>
+    </tr>
+    {{end}}
+    </table>
+
+action /tasks/new requires auth
+  validate task
+  query: INSERT INTO task (title, owner_id) VALUES (:title, :current_user.id)
+  redirect /tasks
+
+action /tasks/:id/delete requires auth
+  query: DELETE FROM task WHERE id = :id AND owner_id = :current_user.id
+  respond fragment delete

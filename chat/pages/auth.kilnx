@@ -1,0 +1,72 @@
+# Auth pages
+# The runtime handles the POST side of /login, /register, /forgot-password
+# and /reset-password; these pages own the HTML. Errors arrive as ?error=.
+
+layout plain
+  html
+    <!DOCTYPE html>
+    <html lang="en" class="h-full">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>{page.title} - Kilnx Chat</title>
+      {kilnx.js}
+      <script src="https://cdn.tailwindcss.com"></script>
+      <style>.kilnx-topbar{display:none!important}</style>
+    </head>
+    <body class="h-full bg-[#1a1d21] text-[#d1d2d3] font-[system-ui,-apple-system,sans-serif] antialiased flex items-center justify-center">
+      <main class="w-full max-w-sm px-6">
+        <div class="flex items-center gap-2 mb-6"><span class="w-9 h-9 rounded-xl bg-[#e64a19] flex items-center justify-center text-white font-black">K</span><span class="font-bold text-white text-lg">Kilnx Chat</span></div>
+        {page.content}
+      </main>
+    </body>
+    </html>
+
+page /login layout plain title "Sign in"
+  html
+    <h1 class="text-white text-xl font-bold mb-4">Sign in</h1>
+    <p class="text-[#e01e5a] text-sm mb-3">{params.error}</p>
+    <form method="POST" action="/login" class="flex flex-col gap-3">
+      <input type="hidden" name="_csrf" value="{csrf}">
+      <input name="identity" type="email" placeholder="Email" required class="px-3 py-2 rounded-md bg-[#222529] border border-[#ffffff1a] text-white">
+      <input name="password" type="password" placeholder="Password" required class="px-3 py-2 rounded-md bg-[#222529] border border-[#ffffff1a] text-white">
+      <button class="py-2 rounded-md bg-[#007a5a] hover:bg-[#148567] text-white font-semibold">Sign in</button>
+    </form>
+    <p class="text-sm mt-4"><a href="/register" class="text-[#1d9bd1]">Create an account</a> · <a href="/forgot-password" class="text-[#1d9bd1]">Forgot password?</a></p>
+    <p class="text-xs text-[#9a9b9e] mt-6">Demo: alice@xpto.dev / demo123 (after ./start.sh)</p>
+
+page /register layout plain title "Create account"
+  html
+    <h1 class="text-white text-xl font-bold mb-4">Create account</h1>
+    <p class="text-[#e01e5a] text-sm mb-3">{params.error}</p>
+    <form method="POST" action="/register" class="flex flex-col gap-3">
+      <input type="hidden" name="_csrf" value="{csrf}">
+      <input name="name" placeholder="Display name" required minlength="2" class="px-3 py-2 rounded-md bg-[#222529] border border-[#ffffff1a] text-white">
+      <input name="identity" type="email" placeholder="Email" required class="px-3 py-2 rounded-md bg-[#222529] border border-[#ffffff1a] text-white">
+      <input name="password" type="password" placeholder="Password (6+ characters)" required minlength="6" class="px-3 py-2 rounded-md bg-[#222529] border border-[#ffffff1a] text-white">
+      <button class="py-2 rounded-md bg-[#007a5a] hover:bg-[#148567] text-white font-semibold">Create account</button>
+    </form>
+    <p class="text-sm mt-4"><a href="/login" class="text-[#1d9bd1]">Already have an account?</a></p>
+
+page /forgot-password layout plain title "Reset password"
+  html
+    <h1 class="text-white text-xl font-bold mb-4">Reset password</h1>
+    <p class="text-[#e01e5a] text-sm mb-3">{params.error}</p>
+    {{if params.sent}}<p class="text-[#2bac76] text-sm mb-3">If that email exists, a reset link is on its way.</p>{{end}}
+    <form method="POST" action="/forgot-password" class="flex flex-col gap-3">
+      <input type="hidden" name="_csrf" value="{csrf}">
+      <input name="email" type="email" placeholder="Email" required class="px-3 py-2 rounded-md bg-[#222529] border border-[#ffffff1a] text-white">
+      <button class="py-2 rounded-md bg-[#007a5a] hover:bg-[#148567] text-white font-semibold">Send reset link</button>
+    </form>
+    <p class="text-sm mt-4"><a href="/login" class="text-[#1d9bd1]">Back to sign in</a></p>
+
+page /reset-password layout plain title "Choose a new password"
+  html
+    <h1 class="text-white text-xl font-bold mb-4">Choose a new password</h1>
+    <p class="text-[#e01e5a] text-sm mb-3">{params.error}</p>
+    <form method="POST" action="/reset-password?token={params.token}" class="flex flex-col gap-3">
+      <input type="hidden" name="_csrf" value="{csrf}">
+      <input name="password" type="password" placeholder="New password" required minlength="6" class="px-3 py-2 rounded-md bg-[#222529] border border-[#ffffff1a] text-white">
+      <input name="password_confirm" type="password" placeholder="Repeat it" required class="px-3 py-2 rounded-md bg-[#222529] border border-[#ffffff1a] text-white">
+      <button class="py-2 rounded-md bg-[#007a5a] hover:bg-[#148567] text-white font-semibold">Save password</button>
+    </form>

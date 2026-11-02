@@ -1,6 +1,6 @@
 # Kilnx Example: Chat
 
-A Slack-style team chat built with [Kilnx](https://kilnx.dev) in a single `.kilnx` file. No JavaScript frameworks, no ORM, no package manager. One file, one binary.
+A Slack-style team chat built with [Kilnx](https://kilnx.org) in a handful of `.kilnx` files. No JavaScript frameworks, no ORM, no package manager. One file, one binary.
 
 ## What it does
 

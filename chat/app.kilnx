@@ -11,6 +11,7 @@ config
 
 import "models.kilnx"
 import "auth.kilnx"
+import "pages/auth.kilnx"
 
 layout slack
   query channels: SELECT c.id, c.name, COUNT(m.id) as msg_count FROM channel c LEFT JOIN message m ON m.channel_id = c.id AND m.reply_to = 0 GROUP BY c.id ORDER BY c.name
