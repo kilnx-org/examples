@@ -7,6 +7,7 @@ Runnable apps built with [Kilnx](https://github.com/kilnx-org/kilnx). Clone, run
 | Example | Stack | LOC | Description |
 |---------|-------|-----|-------------|
 | [hello](hello) | `page` | 2 | Smallest possible Kilnx app |
+| [tasks](tasks) | `model` + `auth` + `page` + `action` | ~80 | Per-user task list with signup, login, password reset, htmx delete. The app from the Kilnx README |
 | [chat](chat) | `model` + `auth` + `action` + `fragment` + `socket` + `stream` + `job` | ~280 | Slack-style chat with channels, threads, DMs, reactions, typing indicators, file uploads |
 
 ## Run any example
